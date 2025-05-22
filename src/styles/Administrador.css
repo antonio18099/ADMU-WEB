@@ -1,0 +1,199 @@
+.admin-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+  }
+  
+  /* Sidebar */
+  .admin-sidebar {
+    width: 240px;
+    background-color: #2a2a2a;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+  }
+  
+  .brand-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: white;
+    gap: 12px;
+  }
+  
+  .sidebar-logo {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    text-decoration: none;
+    color: #cccccc;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .sidebar-link:hover {
+    background-color: #3a3a3a;
+    color: white;
+  }
+  
+  .sidebar-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Contenido principal */
+  .admin-main {
+    flex: 1;
+    padding: 80px 20px 20px; /* Espacio para la Navbar fija */
+    color: white;
+  }
+  
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .admin-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .admin-actions {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .search-input {
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    background-color: #2a2a2a;
+    color: white;
+  }
+  
+  .create-button {
+    padding: 8px 16px;
+    background-color: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .create-button:hover {
+    background-color: #b91c1c;
+  }
+  
+  /* Cuadrícula de usuarios */
+  .users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  
+  .user-card {
+    background-color: #2a2a2a;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    position: relative;
+  }
+  
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+  }
+  
+  .user-card h3 {
+    font-size: 1.1rem;
+    margin: 0 0 5px;
+  }
+  
+  .user-card p {
+    margin: 2px 0;
+    color: #cccccc;
+    font-size: 0.9rem;
+  }
+  
+  .favorite-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .favorite-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Estilos responsivos */
+  @media (max-width: 768px) {
+    .admin-container {
+      flex-direction: column;
+    }
+  
+    .admin-sidebar {
+      width: 100%;
+      padding: 10px;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+  
+    .sidebar-nav {
+      flex-direction: row;
+      gap: 5px;
+    }
+  
+    .sidebar-link span {
+      display: none;
+    }
+  
+    .sidebar-link {
+      padding: 5px;
+    }
+  
+    .admin-main {
+      padding: 70px 10px 10px;
+    }
+  
+    .admin-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+  
+    .admin-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+  
+    .search-input {
+      flex: 1;
+    }
+  }

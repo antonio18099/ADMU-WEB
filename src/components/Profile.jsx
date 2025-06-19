@@ -1,8 +1,6 @@
-
-// //nueva configuracion
-
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Camera, Edit, Loader2 } from "lucide-react";
+import ThemeToggleButton from "./ThemeToggleButton";
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -16,7 +14,6 @@ const Profile = () => {
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef(null);
     const [currentDisplayImage, setCurrentDisplayImage] = useState("/icons/default-avatar.png");
-    const [newImageSuccessfullyUploaded, setNewImageSuccessfullyUploaded] = useState(false);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -29,7 +26,11 @@ const Profile = () => {
                     let userDataToSet;
                     if (docSnap.exists()) {
                         const fetchedData = docSnap.data();
-                        const preferences = fetchedData.preferences || { routeType: "Económica", notifications: true };
+                        const preferences = fetchedData.preferences || { notifications: true };
+                        // Ensure routeType is removed if it exists from older data structures
+                        if ('routeType' in preferences) {
+                            delete preferences.routeType;
+                        }
                         userDataToSet = {
                             ...fetchedData,
                             profileImage: fetchedData.profileImage || "/icons/default-avatar.png",
@@ -40,7 +41,7 @@ const Profile = () => {
                             name: user.displayName || "",
                             email: user.email || "",
                             profileImage: "/icons/default-avatar.png",
-                            preferences: { routeType: "Económica", notifications: true },
+                            preferences: { notifications: true },
                         };
                         console.log("No se encontraron datos del usuario en Firestore, usando datos por defecto.");
                     }
@@ -53,14 +54,12 @@ const Profile = () => {
                         name: user.displayName || "Usuario Ejemplo",
                         email: user.email || "usuario@example.com",
                         profileImage: "/icons/default-avatar.png",
-                        preferences: { routeType: "Económica", notifications: true },
+                        preferences: { notifications: true },
                     };
                     setProfile(defaultOnError);
                     setTempProfile(defaultOnError);
                     setCurrentDisplayImage(defaultOnError.profileImage);
                 }
-            } else {
-                 console.log("Usuario no autenticado al cargar perfil.");
             }
             setIsLoading(false);
         };
@@ -80,72 +79,52 @@ const Profile = () => {
     }, []);
 
     useEffect(() => {
-        if (!isEditing && profile) {
-            setCurrentDisplayImage(profile.profileImage || "/icons/default-avatar.png");
-        } else if (isEditing && tempProfile) {
+        if (isEditing && tempProfile) {
             setCurrentDisplayImage(tempProfile.profileImage || "/icons/default-avatar.png");
+        } else if (!isEditing && profile) {
+            setCurrentDisplayImage(profile.profileImage || "/icons/default-avatar.png");
         }
     }, [profile, tempProfile, isEditing]);
 
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setTempProfile((prev) => {
-            if (!prev) return null;
-            if (type === "checkbox") {
-                return {
-                    ...prev,
-                    preferences: { ...prev.preferences, notifications: checked },
-                };
-            } else if (name.includes(".")) {
-                const [parent, child] = name.split(".");
-                return {
-                    ...prev,
-                    [parent]: {
-                        ...(prev[parent] || {}),
-                        [child]: value,
-                    },
-                };
-            } else {
-                return { ...prev, [name]: value };
+        const keys = name.split('.');
+        
+        setTempProfile(prev => {
+            const newProfile = JSON.parse(JSON.stringify(prev)); // Deep copy for safety
+            let current = newProfile;
+            
+            for (let i = 0; i < keys.length - 1; i++) {
+                current[keys[i]] = current[keys[i]] || {};
+                current = current[keys[i]];
             }
+            
+            current[keys[keys.length - 1]] = type === 'checkbox' ? checked : value;
+            return newProfile;
         });
     };
 
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (!file.type.startsWith("image/")) {
-            alert("Solo puedes subir archivos de imagen (jpg, png, etc).");
-            return;
-        }
 
-        const user = auth.currentUser;
-        if (!user) {
-            alert("Usuario no autenticado.");
-            return;
-        }
         setIsUploading(true);
-        setNewImageSuccessfullyUploaded(false);
-        const fileName = `${user.uid}_${Date.now()}_${file.name}`;
-        const storage = getStorage();
-        const storageRef = ref(storage, `profileImages/${user.uid}/${fileName}`);
-
-        try {
-            console.log("Paso 0: Iniciando subida de imagen...");
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-            console.log("Paso 1: Imagen subida y URL obtenida:", downloadURL);
-            setTempProfile((prev) => ({ ...prev, profileImage: downloadURL }));
-            console.log("Paso 2: tempProfile actualizado con nueva imagen.");
-            setNewImageSuccessfullyUploaded(true);
-        } catch (error) {
-            console.error("Error al subir imagen o obtener URL:", error);
-            alert("Error al subir la imagen. Inténtalo nuevamente.");
-        } finally {
-            setIsUploading(false);
-            console.log("Paso 3: setIsUploading(false) ejecutado.");
+        const user = auth.currentUser;
+        if (user) {
+            const storage = getStorage();
+            const storageRef = ref(storage, `profile_images/${user.uid}/${file.name}`);
+            try {
+                await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(storageRef);
+                setTempProfile(prev => ({ ...prev, profileImage: downloadURL }));
+                setCurrentDisplayImage(downloadURL);
+            } catch (error) {
+                console.error("Error al subir la imagen:", error);
+                alert("Error al subir la imagen. Por favor, inténtalo de nuevo.");
+            }
         }
+        setIsUploading(false);
     };
 
     const triggerFileInput = () => {
@@ -154,111 +133,99 @@ const Profile = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (isSaving || isUploading || !tempProfile) return;
-        setIsSaving(true);
-        console.log("Paso 3.5: Iniciando handleSubmit");
+        if (!tempProfile) return;
 
+        setIsSaving(true);
         const user = auth.currentUser;
         if (user) {
-            const userRef = doc(db, "users", user.uid);
+            const docRef = doc(db, "users", user.uid);
             try {
-                const dataToUpdate = {
+                // Explicitly exclude routeType from the data being saved
+                // eslint-disable-next-line no-unused-vars
+                const { routeType, ...preferencesToSave } = tempProfile.preferences || {};
+
+                const dataToSave = {
                     name: tempProfile.name,
                     email: tempProfile.email,
-                    preferences: tempProfile.preferences,
+                    profileImage: tempProfile.profileImage,
+                    preferences: preferencesToSave,
                 };
-                console.log("Paso 4: Preparando datos para Firestore:", dataToUpdate);
-
-                if (newImageSuccessfullyUploaded && tempProfile.profileImage && (!profile || tempProfile.profileImage !== profile.profileImage)) {
-                    dataToUpdate.profileImage = tempProfile.profileImage;
-                    console.log("Paso 5: Se incluirá nueva profileImage en Firestore:", tempProfile.profileImage);
-                } else {
-                    console.log("Paso 5b: No se actualizará profileImage en Firestore. newImageSuccessfullyUploaded:", newImageSuccessfullyUploaded, "tempProfile.profileImage:", tempProfile.profileImage);
-                }
-
-                await updateDoc(userRef, dataToUpdate);
-                console.log("Paso 6: Datos actualizados en Firestore.");
-                setProfile(prevProfile => ({...prevProfile, ...dataToUpdate}));
+                await updateDoc(docRef, dataToSave);
+                setProfile(tempProfile);
                 setIsEditing(false);
-                setNewImageSuccessfullyUploaded(false);
-                alert("Perfil actualizado correctamente");
+                alert("Perfil actualizado con éxito.");
             } catch (error) {
-                console.error("Error al actualizar el perfil en Firestore:", error);
-                alert("Hubo un error al actualizar el perfil.");
-            } finally {
-                setIsSaving(false);
-                console.log("Paso 7: setIsSaving(false) ejecutado.");
+                console.error("Error al guardar los cambios:", error);
+                alert("Error al guardar los cambios. Por favor, inténtalo de nuevo.");
             }
         }
+        setIsSaving(false);
     };
 
-    if (isLoading || !profile) {
+    if (isLoading) {
         return (
-            <div className="flex justify-center items-center p-5 min-h-[200px]">
+            <div className="flex justify-center items-center p-6 min-h-[200px]">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                <span className="ml-2 text-gray-700">Cargando perfil...</span>
+            </div>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-auto my-8">
+                <p className="text-gray-700 dark:text-gray-300">Por favor, inicia sesión para ver tu perfil.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-auto my-8">
+        <div className="relative z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-auto my-8">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Mi Perfil</h2>
-                {!isEditing && (
-                    <button 
-                        onClick={() => {
-                            setTempProfile({ ...profile });
-                            setIsEditing(true);
-                            setNewImageSuccessfullyUploaded(false);
-                        }}
-                        className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-150"
-                    >
-                        <Edit size={16} className="mr-1" />
-                        <span>Editar</span>
-                    </button>
-                )}
-            </div>
-
-            <div className="flex flex-col items-center mb-6">
-                <div className="relative">
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-md">
-                        <img 
-                            src={currentDisplayImage} 
-                            alt="Foto de perfil" 
-                            className="w-full h-full object-cover"
-                            onError={() => {
-                                setCurrentDisplayImage("/icons/default-avatar.png");
-                                if (newImageSuccessfullyUploaded) {
-                                    setNewImageSuccessfullyUploaded(false);
-                                }
-                            }}
-                        />
-                    </div>
-                    
-                    {isEditing && (
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Perfil de Usuario</h2>
+                <div className="flex items-center space-x-4">
+                    <ThemeToggleButton />
+                    {!isEditing && (
                         <button 
-                            onClick={triggerFileInput}
-                            disabled={isUploading}
-                            className="absolute -bottom-1 -right-1 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 shadow-md transition-colors duration-150 disabled:opacity-50"
-                            title="Cambiar foto"
+                            onClick={() => {
+                                setTempProfile({ ...profile });
+                                setIsEditing(true);
+                            }}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
+                            aria-label="Editar perfil"
                         >
-                            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera size={16} />}
+                            <Edit className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                         </button>
                     )}
-                    
-                    <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        onChange={handleImageUpload}
-                        accept="image/*"
-                        className="hidden"
-                    />
                 </div>
             </div>
 
             {isEditing ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                    <div className="relative w-28 h-28 mx-auto">
+                        <img 
+                            src={currentDisplayImage}
+                            alt="Perfil"
+                            className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
+                            onError={(e) => { e.target.onerror = null; e.target.src='/icons/default-avatar.png'; }}
+                        />
+                        <button 
+                            type="button" 
+                            onClick={triggerFileInput}
+                            disabled={isUploading}
+                            className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-2 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors duration-150"
+                            aria-label="Cambiar foto de perfil"
+                        >
+                            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                        </button>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleImageUpload} 
+                            className="hidden"
+                            accept="image/png, image/jpeg"
+                        />
+                    </div>
+
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre:</label>
                         <input
@@ -273,7 +240,7 @@ const Profile = () => {
                     </div>
                     
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo electrónico:</label>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico:</label>
                         <input
                             type="email"
                             id="email"
@@ -284,21 +251,6 @@ const Profile = () => {
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         />
                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Cambiar esto no actualiza tu email de inicio de sesión.</p>
-                    </div>
-                    
-                    <div>
-                        <label htmlFor="routeType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de ruta preferida:</label>
-                        <select
-                            id="routeType"
-                            name="preferences.routeType"
-                            value={tempProfile?.preferences?.routeType || "Económica"}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                        >
-                            <option value="Rápida">Rápida</option>
-                            <option value="Económica">Económica</option>
-                            <option value="Sostenible">Sostenible</option>
-                        </select>
                     </div>
                     
                     <div className="flex items-center">
@@ -335,27 +287,39 @@ const Profile = () => {
                     </div>
                 </form>
             ) : (
-                <div className="space-y-3 text-sm">
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">Nombre:</p>
-                        <p className="font-medium text-gray-900 dark:text-white">{profile?.name || "No especificado"}</p>
+                <div className="space-y-6 text-sm text-center">
+                    <div className="relative w-28 h-28 mx-auto">
+                        <img 
+                            src={currentDisplayImage}
+                            alt="Perfil"
+                            className="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
+                            onError={(e) => { e.target.onerror = null; e.target.src='/icons/default-avatar.png'; }}
+                        />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Información Personal</h3>
+                        <div className="space-y-3">
+                            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Nombre</p>
+                                <p className="font-medium text-gray-900 dark:text-white">{profile?.name || "No especificado"}</p>
+                            </div>
+                            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Correo</p>
+                                <p className="font-medium text-gray-900 dark:text-white break-words">{profile?.email || "No especificado"}</p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">Correo:</p>
-                        <p className="font-medium text-gray-900 dark:text-white">{profile?.email || "No especificado"}</p>
-                    </div>
-                    
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">Tipo de ruta preferida:</p>
-                        <p className="font-medium text-gray-900 dark:text-white">{profile?.preferences?.routeType || "No especificado"}</p>
-                    </div>
-                    
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                        <p className="text-gray-500 dark:text-gray-400">Notificaciones:</p>
-                        <p className={`font-medium ${profile?.preferences?.notifications ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                            {profile?.preferences?.notifications ? "Activadas" : "Desactivadas"}
-                        </p>
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Configuración</h3>
+                        <div className="space-y-3">
+                            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Notificaciones</p>
+                                <p className={`font-medium ${profile?.preferences?.notifications ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                                    {profile?.preferences?.notifications ? "Activadas" : "Desactivadas"}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -364,5 +328,3 @@ const Profile = () => {
 };
 
 export default Profile;
-
-

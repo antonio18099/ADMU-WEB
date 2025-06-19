@@ -524,7 +524,6 @@
 
 // export default MapPage;
 
-
 // src/components/Map.jsx
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -542,8 +541,10 @@ import { db } from "../firebase";
 import PropTypes from "prop-types";
 import ChatBot from "./ChatBot"; // Importamos el componente ChatBot
 
+// Importa la URL del icono personalizado para los paraderos
 import customMarkerIconUrl from "/icons/parada-Icon.png";
 
+// Icono personalizado para los paraderos
 const paradaIcon = new L.Icon({
   iconUrl: customMarkerIconUrl,
   iconSize: [25, 41],
@@ -551,6 +552,7 @@ const paradaIcon = new L.Icon({
   popupAnchor: [1, -34]
 });
 
+// Componente para ajustar la vista del mapa a los paraderos mostrados
 const MapAdjuster = ({ paraderos }) => {
   const map = useMap();
 
@@ -577,6 +579,48 @@ MapAdjuster.propTypes = {
   )
 };
 
+// Componente para mostrar la ubicación actual del usuario
+function LocationMarker() {
+  const [position, setPosition] = useState(null);
+  const [address, setAddress] = useState("Obteniendo dirección...");
+  const map = useMap();
+
+  useEffect(() => {
+    map.locate({
+      setView: true, // Centra el mapa en la ubicación encontrada
+      maxZoom: 16, // Establece un zoom máximo al encontrar la ubicación
+      enableHighAccuracy: true // Solicita una ubicación más precisa
+    }).on("locationfound", function (e) {
+      setPosition(e.latlng);
+      map.flyTo(e.latlng, map.getZoom());
+
+      // Geocodificación inversa para obtener la dirección
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
+        .then(response => response.json())
+        .then(data => {
+          setAddress(data.display_name || "Ubicación encontrada");
+        }).catch(() => {
+          setAddress("No se pudo obtener la dirección.");
+        });
+
+    }).on("locationerror", function (e) {
+      console.error("Error al obtener la ubicación: ", e.message);
+      setAddress("No se pudo obtener la ubicación precisa.");
+      // Considerar mostrar un mensaje al usuario o usar una ubicación por defecto
+    });
+  }, [map]);
+
+  return position === null ? null : (
+    <Marker position={position}>
+      <Popup>
+        Estás aquí.<br/>
+        {address}
+      </Popup>
+    </Marker>
+  );
+}
+
+// Componente principal del mapa
 const MapPage = () => {
   const [paraderos, setParaderos] = useState([]);
   const [rutas, setRutas] = useState([]);
@@ -584,12 +628,14 @@ const MapPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Posición inicial del mapa y límites de Armenia
   const initialPosition = useMemo(() => [4.53389, -75.68111], []);
-  const armeniaBounds = [
+  const armeniaBounds = useMemo(() => [
     [4.3379, -75.870],
     [4.6459, -75.551]
-  ];
+  ], []);
 
+  // Carga de paraderos desde Firestore
   useEffect(() => {
     setLoading(true);
     const paraderosRef = collection(db, "paraderos");
@@ -618,6 +664,7 @@ const MapPage = () => {
     return () => unsubscribe();
   }, []);
 
+  // Carga de rutas desde Firestore
   useEffect(() => {
     const rutasRef = collection(db, "rutas");
     const unsubscribe = onSnapshot(
@@ -646,7 +693,7 @@ const MapPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // Use a separate state for enriched paraderos to avoid infinite loop
+  // Enriquecer paraderos con información de rutas asociadas
   const [enrichedParaderos, setEnrichedParaderos] = useState([]);
 
   useEffect(() => {
@@ -673,6 +720,7 @@ const MapPage = () => {
     }
   }, [paraderos, rutas]);
 
+  // Datos de rutas extendidos con paraderos y caminos
   const extendedRoutesData = useMemo(() => {
     return rutas.map(route => {
       const routeParaderos = enrichedParaderos.filter(p =>
@@ -697,7 +745,7 @@ const MapPage = () => {
       };
     });
   }, [enrichedParaderos, rutas, initialPosition]);
-
+  // Rutas ordenadas numéricamente
   const sortedRoutes = useMemo(() => {
     return [...extendedRoutesData].sort((a, b) => {
       const numA = parseInt(a.name.replace(/\D/g, ""), 10) || 0;
@@ -706,37 +754,45 @@ const MapPage = () => {
     });
   }, [extendedRoutesData]);
 
+  // Filtrar rutas según el término de búsqueda
+  const filteredRoutes = useMemo(() => {
+    if (!searchTerm) {
+      return sortedRoutes;
+    }
+    return sortedRoutes.filter(route =>
+      route.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [sortedRoutes, searchTerm]);
+
+  // Manejador para seleccionar una ruta
   const handleRouteClick = route => {
     setSelectedRoute(route);
   };
 
+  // Manejador de cambio en el campo de búsqueda
   const handleSearchChange = event => {
     setSearchTerm(event.target.value);
   };
 
+  // Paraderos a mostrar en el mapa (filtrados solo por la ruta seleccionada)
   const displayedParaderos = useMemo(() => {
     let result = enrichedParaderos;
     if (selectedRoute) {
       result = result.filter(p => p.idRutas && p.idRutas.includes(selectedRoute.id));
     }
-    if (searchTerm) {
-      result = result.filter(p =>
-        p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
     return result;
-  }, [enrichedParaderos, selectedRoute, searchTerm]);
+  }, [enrichedParaderos, selectedRoute]);
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] pt-16 md:pt-0 relative">
+    <div className="flex flex-col md:flex-row h-full">
       <div className="w-full md:w-1/3 lg:w-1/4 bg-white shadow-md overflow-y-auto p-4">
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Buscar paradero por nombre..."
+            placeholder="Buscar ruta por nombre..."
             value={searchTerm}
             onChange={handleSearchChange}
-            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
           />
         </div>
 
@@ -745,7 +801,7 @@ const MapPage = () => {
           <p className="text-gray-500">Cargando rutas...</p>
         ) : (
           <ul className="space-y-3">
-            {sortedRoutes.map(route => (
+            {filteredRoutes.map(route => (
               <li
                 key={route.id}
                 className={`p-3 border rounded-lg hover:bg-gray-100 cursor-pointer transition-colors ${
@@ -788,8 +844,9 @@ const MapPage = () => {
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
+          <LocationMarker />
           {displayedParaderos.map(paradero => (
             <Marker
               key={paradero.id}
@@ -819,3 +876,5 @@ const MapPage = () => {
 };
 
 export default MapPage;
+
+

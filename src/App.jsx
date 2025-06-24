@@ -104,6 +104,7 @@ import AdministradorLayout from "./components/Administrador"; // Este es el Layo
 import GestionRutas from "./components/admin/GestionRutas";
 import GestionParaderos from "./components/admin/GestionParaderos";
 import GestionUsuarios from "./components/admin/GestionUsuarios";
+import GestionTarifas from './components/admin/GestionTarifas';
 // import AdminDashboard from './components/admin/AdminDashboard'; // Si decides crear un dashboard específico para admin
 
 function App() {
@@ -145,6 +146,7 @@ function App() {
           <Route path="rutas" element={<GestionRutas />} />
           <Route path="paraderos" element={<GestionParaderos />} />
           <Route path="usuarios" element={<GestionUsuarios />} />
+          <Route path="/admin/tarifas" element={<GestionTarifas />} />
         </Route>
         
         {/* Ruta raíz principal: redirige a login o dashboard según autenticación */}

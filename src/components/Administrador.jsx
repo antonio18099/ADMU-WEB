@@ -83,7 +83,7 @@
 
 // src/components/Administrador.jsx
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Route, MapPin, Users, LogOut, ArrowLeft } from 'lucide-react'; // Using lucide-react icons
+import { Route, MapPin, Users, LogOut, ArrowLeft, DollarSign } from 'lucide-react'; // Using lucide-react icons
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import { useNavigate } from 'react-router-dom';
@@ -106,6 +106,7 @@ const AdministradorLayout = () => {
     { to: "/admin/rutas", text: "Gestión de Rutas", icon: Route },
     { to: "/admin/paraderos", text: "Gestión de Paraderos", icon: MapPin },
     { to: "/admin/usuarios", text: "Gestión de Usuarios", icon: Users },
+    { to: "/admin/tarifas", text: "Gestión de Tarifas", icon: DollarSign },
   ];
 
   // Default redirect for /admin to /admin/rutas if no other sub-route matches

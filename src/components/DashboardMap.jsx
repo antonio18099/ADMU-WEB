@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { db } from "../firebase"; // Importamos la conexión a Firestore
-import { collection, onSnapshot } from "firebase/firestore"; // Importamos funciones de Firestore
+import { collection, onSnapshot, getDocs } from "firebase/firestore"; // Importamos funciones de Firestore
 import { Link } from "react-router-dom"; // Importamos Link para navegación
 
 // Importa el icono personalizado para paraderos
@@ -47,12 +47,27 @@ MapAdjuster.propTypes = {
 const DashboardMap = () => {
     const [paraderos, setParaderos] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [rutasMap, setRutasMap] = useState({}); // Nuevo estado para almacenar el mapa de rutas
     
     const initialPosition = [4.53389, -75.68111];
     const armeniaBounds = [
         [4.3379, -75.870], // Esquina Suroeste (ampliada para incluir el aeropuerto)
         [4.6459, -75.551]  // Esquina Noreste
     ];
+
+    // Obtener rutas de Firestore una vez
+    useEffect(() => {
+        const fetchRutas = async () => {
+            const rutasCollectionRef = collection(db, "rutas");
+            const querySnapshot = await getDocs(rutasCollectionRef);
+            const rMap = {};
+            querySnapshot.forEach((doc) => {
+                rMap[doc.id] = doc.data().nombre; // Asume que cada ruta tiene un campo 'nombre'
+            });
+            setRutasMap(rMap);
+        };
+        fetchRutas();
+    }, []);
 
     // Obtener paraderos de Firestore en tiempo real
     useEffect(() => {
@@ -62,16 +77,22 @@ const DashboardMap = () => {
         // Usar onSnapshot para escuchar cambios en tiempo real
         const unsubscribe = onSnapshot(paraderosCollectionRef, (snapshot) => {
             const paraderosData = snapshot.docs.map((doc) => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    nombre: data.nombre,
-                    position: [data.ubicacion.latitude, data.ubicacion.longitude],
-                    descripcion: data.descripcion || "",
-                    // Asignamos rutas temporales hasta que implementemos la relación real
-                    rutas: ["Consultar panel de administración"],
-                };
-            });
+    const data = doc.data();
+    const associatedRutas = data.rutas && data.rutas.length > 0 
+        ? data.rutas.map(rutaId => rutasMap[rutaId] || rutaId)
+        : ["Consultar panel de administración"];
+
+    return {
+        id: doc.id,
+        nombre: data.nombre,
+        position: data.ubicacion 
+            ? [data.ubicacion.latitude, data.ubicacion.longitude] 
+            : [data.latitud, data.longitud],
+        descripcion: data.descripcion || "",
+        rutas: associatedRutas,
+    };
+});
+
             setParaderos(paraderosData);
             setLoading(false);
         }, (error) => {
@@ -81,7 +102,7 @@ const DashboardMap = () => {
         
         // Limpiar el listener cuando el componente se desmonte
         return () => unsubscribe();
-    }, []);
+    }, [rutasMap]); // Dependencia de rutasMap para que se actualice cuando las rutas se carguen
 
     return (
         <div className="relative h-full">
@@ -104,7 +125,7 @@ const DashboardMap = () => {
             >
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+                    attribution="&copy; <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors"
                 />
                 
                 {/* Componente para ajustar el zoom y centro del mapa */}
@@ -139,3 +160,5 @@ const DashboardMap = () => {
 };
 
 export default DashboardMap;
+
+

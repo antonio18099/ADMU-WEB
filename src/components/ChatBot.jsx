@@ -770,6 +770,52 @@ const ChatBot = () => {
     }
   }, [messages]);
 
+  // Función para detectar saludos
+  const esSaludo = (texto) => {
+    const saludos = ["hola", "buenos días", "buenas tardes", "buenas noches", "saludos", "hey", "ey", "buen día", "que tal", "qué tal", "como estas", "cómo estás", "hi", "hello"];
+    return saludos.some(saludo => texto.toLowerCase().includes(saludo));
+  };
+
+  // Función para detectar despedidas
+  const esDespedida = (texto) => {
+    const despedidas = ["gracias", "muchas gracias", "thank you", "thanks", "te agradezco", "perfecto", "excelente", "muy bien", "ok gracias", "está bien", "listo", "chao", "adiós", "hasta luego", "nos vemos"];
+    return despedidas.some(despedida => texto.toLowerCase().includes(despedida));
+  };
+
+  // Función para personalizar respuestas antes de enviar a Mistral
+  const personalizarRespuesta = (userInput, mistralResponse) => {
+    const input = userInput.toLowerCase();
+    
+    // Personalizar saludos
+    if (esSaludo(input)) {
+      const horaActual = new Date().getHours();
+      let saludo = "¡Hola!";
+      
+      if (horaActual >= 5 && horaActual < 12) {
+        saludo = "¡Buenos días!";
+      } else if (horaActual >= 12 && horaActual < 18) {
+        saludo = "¡Buenas tardes!";
+      } else {
+        saludo = "¡Buenas noches!";
+      }
+      
+      return `${saludo} 👋 Soy el asistente virtual de ADMU. ¿En qué te puedo ayudar el día de hoy? Puedo brindarte información sobre rutas, horarios, tarifas y paraderos del sistema de transporte público de Armenia.`;
+    }
+    
+    // Personalizar despedidas
+    if (esDespedida(input)) {
+      const despedidas = [
+        "¡Con gusto! Estoy aquí para ayudarte siempre que lo necesites. ¡Que tengas un excelente día! 😊",
+        "¡De nada! Me alegra haber podido ayudarte. No dudes en consultarme cuando necesites información sobre el transporte público. ¡Hasta pronto! 🚌",
+        "¡Perfecto! Siempre estaré disponible para resolver tus dudas sobre ADMU. ¡Que tengas un buen viaje! 🌟"
+      ];
+      return despedidas[Math.floor(Math.random() * despedidas.length)];
+    }
+    
+    // Para otras consultas, usar la respuesta de Mistral pero asegurar que sea informativa
+    return mistralResponse;
+  };
+
   // Consulta a Mistral con contexto real
   const askMistral = async (question) => {
     const rutasContext = rutas.map(r => `- ${r.nombre}: de ${r.origen} a ${r.destino}, duración: ${r.duracion}, estado: ${r.estado}`).join("\n");
@@ -787,7 +833,21 @@ const ChatBot = () => {
           messages: [
             {
               role: "system",
-              content: `Eres un asistente de transporte público de Armenia. Estas son las rutas disponibles:\n${rutasContext}\n\nY estos son los paraderos:\n${paraderosContext}\n\nResponde de forma clara, precisa y breve.`
+              content: `Eres un asistente especializado en el sistema de transporte público ADMU de Armenia, Colombia. Tu función es proporcionar información precisa y útil sobre rutas, horarios, tarifas y paraderos.
+
+INFORMACIÓN DISPONIBLE:
+Rutas del sistema:
+${rutasContext}
+
+Paraderos principales:
+${paraderosContext}
+
+INSTRUCCIONES:
+- Responde de forma clara, precisa y amigable
+- Proporciona solo información relacionada con el transporte público ADMU
+- Si no tienes información específica, sugiere alternativas o recomienda contactar al sistema
+- Mantén las respuestas concisas pero informativas
+- No inventes información que no esté en el contexto proporcionado`
             },
             {
               role: "user",
@@ -800,7 +860,7 @@ const ChatBot = () => {
       return data.choices[0].message.content;
     } catch (error) {
       console.error("Error al preguntar a Mistral:", error);
-      return "Lo siento, hubo un problema para procesar tu pregunta.";
+      return "Lo siento, hubo un problema para procesar tu pregunta. Por favor, intenta de nuevo en unos momentos.";
     }
   };
 
@@ -816,20 +876,40 @@ const ChatBot = () => {
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputText;
     setInputText("");
     setIsTyping(true);
 
-    const botResponse = await askMistral(userMessage.text);
-    setMessages(prev => [
-      ...prev,
-      {
-        id: messages.length + 2,
-        text: botResponse,
-        sender: "bot",
-        timestamp: new Date()
-      }
-    ]);
-    setIsTyping(false);
+    try {
+      // Obtener respuesta de Mistral
+      const mistralResponse = await askMistral(currentInput);
+      
+      // Personalizar la respuesta
+      const finalResponse = personalizarRespuesta(currentInput, mistralResponse);
+      
+      setMessages(prev => [
+        ...prev,
+        {
+          id: messages.length + 2,
+          text: finalResponse,
+          sender: "bot",
+          timestamp: new Date()
+        }
+      ]);
+    } catch (error) {
+      console.error("Error al generar respuesta:", error);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: messages.length + 2,
+          text: "Lo siento, ha ocurrido un error al procesar tu solicitud. Por favor, intenta de nuevo.",
+          sender: "bot",
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const formatTime = (date) => {
@@ -852,7 +932,7 @@ const ChatBot = () => {
         <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
           <div className="flex items-center">
             <MessageSquare size={16} className="mr-1.5" />
-            <h3 className="text-sm font-semibold">Asistente ADMU</h3>
+            <h3 className="text-sm font-semibold">Asistente Virtual ADMU</h3>
           </div>
           <button onClick={() => setIsOpen(false)} className="text-white">
             <ChevronDown size={16} />
@@ -862,7 +942,7 @@ const ChatBot = () => {
         <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
           {messages.length === 0 ? (
             <div className="text-center text-gray-400 text-xs">
-              Escribe tu pregunta para comenzar...
+              ¡Hola! Soy tu asistente virtual de ADMU. Escribe &quot;hola&quot; para comenzar...
             </div>
           ) : (
             <div className="space-y-3">
@@ -907,6 +987,15 @@ const ChatBot = () => {
               <Send size={16} />
             </button>
           </div>
+          <div className="mt-1.5 text-xs text-gray-500 flex items-center justify-center">
+            <button 
+              type="button" 
+              onClick={() => setInputText("Hola")}
+              className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
+            >
+              <MessageSquare size={10} className="mr-1" /> Saludar
+            </button>
+          </div>
         </form>
       </div>
     </>
@@ -914,3 +1003,4 @@ const ChatBot = () => {
 };
 
 export default ChatBot;
+

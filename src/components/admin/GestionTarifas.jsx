@@ -19,14 +19,14 @@ const GestionTarifas = () => {
   const [error, setError] = useState(null);
 
   // URL base de la API
-  const API_URL = "http://localhost:8080/api/tarifas";
+  const API_URL = "https://admu-backend.onrender.com/api";
 
   // Obtener todas las tarifas
   const obtenerTarifas = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(`${API_URL}/tarifas`);
       if (!response.ok) {
         throw new Error(`Error al obtener tarifas: ${response.status}`);
       }
@@ -44,7 +44,7 @@ const GestionTarifas = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/tipo/${tipo}`);
+      const response = await fetch(`${API_URL}/tarifas/buscar/tipo/${tipo}`);
       if (!response.ok) {
         throw new Error(`Error al obtener tarifas por tipo: ${response.status}`);
       }
@@ -62,7 +62,7 @@ const GestionTarifas = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/compania/${compania}`);
+      const response = await fetch(`${API_URL}/tarifas/buscar/compania/${compania}`);
       if (!response.ok) {
         throw new Error(`Error al obtener tarifas por compañía: ${response.status}`);
       }
@@ -80,7 +80,7 @@ const GestionTarifas = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/ruta/${ruta}`);
+      const response = await fetch(`${API_URL}/tarifas/buscar/ruta/${ruta}`);
       if (!response.ok) {
         throw new Error(`Error al obtener tarifas por ruta: ${response.status}`);
       }
@@ -135,7 +135,7 @@ const GestionTarifas = () => {
       
       if (tarifaEditando) {
         // Actualizar tarifa existente
-        response = await fetch(`${API_URL}/${tarifaEditando.id}`, {
+        response = await fetch(`${API_URL}/tarifas/${tarifaEditando.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -150,7 +150,7 @@ const GestionTarifas = () => {
         alert("Tarifa actualizada exitosamente");
       } else {
         // Crear nueva tarifa
-        response = await fetch(API_URL, {
+        response = await fetch(`${API_URL}/tarifas`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -181,7 +181,7 @@ const GestionTarifas = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_URL}/${id}`, {
+        const response = await fetch(`${API_URL}/tarifas/${id}`, {
           method: 'DELETE',
         });
         
@@ -238,7 +238,7 @@ const GestionTarifas = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_URL}/inicializar`, {
+        const response = await fetch(`${API_URL}/tarifas/inicializar`, {
           method: 'POST',
         });
         

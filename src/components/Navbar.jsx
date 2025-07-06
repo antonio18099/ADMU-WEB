@@ -140,7 +140,7 @@ const Navbar = () => {
 
       {/* Dropdown del perfil */}
       {showProfile && (
-        <div className="absolute right-4 md:right-8 top-16 bg-white shadow-lg rounded-lg p-4 w-64 z-50">
+                                                <div className="absolute right-4 md:right-8 top-16 bg-white shadow-lg rounded-lg p-4 w-[17rem] z-50 max-h-[calc(100vh-5rem)] overflow-y-auto">
           <Profile />
         </div>
       )}

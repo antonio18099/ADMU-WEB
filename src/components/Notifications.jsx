@@ -3,8 +3,8 @@ import "../styles/Notifications.css";
 
 const Notifications = () => {
     const notifications = [
-        { id: 1, message: "Tu ruta está en camino.", date: "2023-10-01" },
-        { id: 2, message: "Retraso en la ruta 2.", date: "2023-10-02" },
+        { id: 1, message: "Tu ruta está en camino.", date: "2025-10-01" },
+        { id: 2, message: "Retraso en la ruta 2.", date: "2025-10-02" },
     ];
 
     return (

@@ -799,7 +799,7 @@ const ChatBot = () => {
         saludo = "¡Buenas noches!";
       }
       
-      return `${saludo} 👋 Soy el asistente virtual de ADMU. ¿En qué te puedo ayudar el día de hoy? Puedo brindarte información sobre rutas, horarios, tarifas y paraderos del sistema de transporte público de Armenia.`;
+      return `${saludo} 👋 Soy el asistente virtual de ADMU. ¿En qué te puedo ayudar el día de hoy?. `;
     }
     
     // Personalizar despedidas

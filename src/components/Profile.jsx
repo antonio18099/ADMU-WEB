@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Edit, Loader2 } from "lucide-react";
-import ThemeToggleButton from "./ThemeToggleButton";
+
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -181,22 +181,19 @@ const Profile = () => {
     return (
         <div className="relative z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-auto my-8">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Perfil de Usuario</h2>
-                <div className="flex items-center space-x-4">
-                    <ThemeToggleButton />
-                    {!isEditing && (
-                        <button 
-                            onClick={() => {
-                                setTempProfile({ ...profile });
-                                setIsEditing(true);
-                            }}
-                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
-                            aria-label="Editar perfil"
-                        >
-                            <Edit className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                        </button>
-                    )}
-                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white whitespace-nowrap -ml-6">Perfil de Usuario</h2>
+                {!isEditing && (
+                    <button 
+                        onClick={() => {
+                            setTempProfile({ ...profile });
+                            setIsEditing(true);
+                        }}
+                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
+                        aria-label="Editar perfil"
+                    >
+                        <Edit className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                )}
             </div>
 
             {isEditing ? (

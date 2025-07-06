@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { Star, MapPin, Route } from "lucide-react";
+
 
 import "../styles/Dashboard.css";
 import DashboardMap from "./DashboardMap";
@@ -48,23 +48,7 @@ const Dashboard = () => {
                 </p>
             </header>
 
-            {/* Quick Actions Only - Centered */}
-            <div className="flex justify-center mb-8">
-                <div className="flex gap-4">
-                    <button className="flex flex-col items-center justify-center p-3 bg-white dark:bg-zinc-800 rounded-lg shadow-sm hover:bg-green-50 dark:hover:bg-zinc-700/50 transition-colors">
-                        <Star className="h-6 w-6 text-green-600 dark:text-green-400 mb-1" />
-                        <span className="text-xs font-medium text-gray-700 dark:text-zinc-300">Favoritas</span>
-                    </button>
-                    <button className="flex flex-col items-center justify-center p-3 bg-white dark:bg-zinc-800 rounded-lg shadow-sm hover:bg-green-50 dark:hover:bg-zinc-700/50 transition-colors">
-                        <MapPin className="h-6 w-6 text-green-600 dark:text-green-400 mb-1" />
-                        <span className="text-xs font-medium text-gray-700 dark:text-zinc-300">Cercanos</span>
-                    </button>
-                    <button className="flex flex-col items-center justify-center p-3 bg-white dark:bg-zinc-800 rounded-lg shadow-sm hover:bg-green-50 dark:hover:bg-zinc-700/50 transition-colors">
-                        <Route className="h-6 w-6 text-green-600 dark:text-green-400 mb-1" />
-                        <span className="text-xs font-medium text-gray-700 dark:text-zinc-300">Planificar</span>
-                    </button>
-                </div>
-            </div>
+
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 gap-8">

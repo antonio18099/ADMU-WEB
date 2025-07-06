@@ -636,33 +636,46 @@ const MapPage = () => {
   ], []);
 
   // Carga de paraderos desde Firestore
-  useEffect(() => {
-    setLoading(true);
-    const paraderosRef = collection(db, "paraderos");
-    const unsubscribe = onSnapshot(
-      paraderosRef,
-      snapshot => {
-        const data = snapshot.docs.map(doc => ({
+  // Carga de paraderos desde Firestore
+useEffect(() => {
+  setLoading(true);
+  const paraderosRef = collection(db, "paraderos");
+
+  const unsubscribe = onSnapshot(
+    paraderosRef,
+    snapshot => {
+      const data = snapshot.docs.map(doc => {
+        const d = doc.data();
+
+        // ✅ Compatibilidad con 'ubicacion' o 'latitud'/'longitud' planos
+        const lat = d.ubicacion?.latitude ?? d.latitud;
+        const lng = d.ubicacion?.longitude ?? d.longitud;
+
+        const position = (lat !== undefined && lng !== undefined)
+          ? [lat, lng]
+          : null;
+
+        return {
           id: doc.id,
-          nombre: doc.data().nombre,
-          position: [
-            doc.data().ubicacion.latitude,
-            doc.data().ubicacion.longitude
-          ],
-          descripcion: doc.data().descripcion || "",
+          nombre: d.nombre,
+          position,
+          descripcion: d.descripcion || "",
           rutas: [],
           idRutas: []
-        }));
-        setParaderos(data);
-        setLoading(false);
-      },
-      error => {
-        console.error("Error al obtener paraderos: ", error);
-        setLoading(false);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
+        };
+      }).filter(p => p.position !== null); // Solo incluir paraderos válidos
+
+      setParaderos(data);
+      setLoading(false);
+    },
+    error => {
+      console.error("Error al obtener paraderos: ", error);
+      setLoading(false);
+    }
+  );
+
+  return () => unsubscribe();
+}, []);
 
   // Carga de rutas desde Firestore
   useEffect(() => {
@@ -776,12 +789,14 @@ const MapPage = () => {
 
   // Paraderos a mostrar en el mapa (filtrados solo por la ruta seleccionada)
   const displayedParaderos = useMemo(() => {
-    let result = enrichedParaderos;
-    if (selectedRoute) {
-      result = result.filter(p => p.idRutas && p.idRutas.includes(selectedRoute.id));
-    }
-    return result;
-  }, [enrichedParaderos, selectedRoute]);
+  // Mostrar todos los paraderos si no hay ruta seleccionada
+  if (!selectedRoute) return enrichedParaderos;
+
+  // Filtrar por ruta si hay una seleccionada
+  return enrichedParaderos.filter(p =>
+    p.idRutas && p.idRutas.includes(selectedRoute.id)
+  );
+}, [enrichedParaderos, selectedRoute]);
 
   return (
     <div className="flex flex-col md:flex-row h-full">

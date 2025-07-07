@@ -718,6 +718,7 @@
 
 
                                                 // ChatBot.js con mistral
+// ChatBot.js con Mistral + Tarifas en código
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, X, ChevronDown } from "lucide-react";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -731,6 +732,19 @@ const ChatBot = () => {
   const [rutas, setRutas] = useState([]);
   const [paraderos, setParaderos] = useState([]);
   const messagesEndRef = useRef(null);
+
+  // TARIFAS FIJAS EN CÓDIGO
+  const tarifas = [
+    { compania: "Buses Armenia SAS", ruta: "Ruta 33", tarifa: 2900, tipo: "General" },
+    { compania: "Cootracir", ruta: "Salento", tarifa: 4000, tipo: "General" },
+    { compania: "Cootracir", ruta: "Filandia", tarifa: 5500, tipo: "General" },
+    { compania: "Cootracir", ruta: "Circasia", tarifa: 4000, tipo: "General" },
+    { compania: "Buses Armenia SAS", ruta: "Ruta 37", tarifa: 2900, tipo: "General" },
+    { compania: "Buses Armenia SAS", ruta: "Ruta 4", tarifa: 2900, tipo: "General" },
+    { compania: "Buses Armenia SAS", ruta: "Ruta 18", tarifa: 2900, tipo: "General" },
+    { compania: "Buses Armenia SAS", ruta: "Ruta 28", tarifa: 2900, tipo: "General" },
+    { compania: "Buses Armenia SAS", ruta: "Ruta 31", tarifa: 2900, tipo: "General" },
+  ];
 
   // Cargar rutas de Firestore
   useEffect(() => {
@@ -770,27 +784,21 @@ const ChatBot = () => {
     }
   }, [messages]);
 
-  // Función para detectar saludos
   const esSaludo = (texto) => {
     const saludos = ["hola", "buenos días", "buenas tardes", "buenas noches", "saludos", "hey", "ey", "buen día", "que tal", "qué tal", "como estas", "cómo estás", "hi", "hello"];
     return saludos.some(saludo => texto.toLowerCase().includes(saludo));
   };
 
-  // Función para detectar despedidas
   const esDespedida = (texto) => {
     const despedidas = ["gracias", "muchas gracias", "thank you", "thanks", "te agradezco", "perfecto", "excelente", "muy bien", "ok gracias", "está bien", "listo", "chao", "adiós", "hasta luego", "nos vemos"];
     return despedidas.some(despedida => texto.toLowerCase().includes(despedida));
   };
 
-  // Función para personalizar respuestas antes de enviar a Mistral
   const personalizarRespuesta = (userInput, mistralResponse) => {
     const input = userInput.toLowerCase();
-    
-    // Personalizar saludos
     if (esSaludo(input)) {
       const horaActual = new Date().getHours();
       let saludo = "¡Hola!";
-      
       if (horaActual >= 5 && horaActual < 12) {
         saludo = "¡Buenos días!";
       } else if (horaActual >= 12 && horaActual < 18) {
@@ -798,56 +806,47 @@ const ChatBot = () => {
       } else {
         saludo = "¡Buenas noches!";
       }
-      
-      return `${saludo} 👋 Soy el asistente virtual de ADMU. ¿En qué te puedo ayudar el día de hoy?. `;
+      return `${saludo} 👋 Soy el asistente virtual de ADMU. ¿En qué te puedo ayudar hoy?`;
     }
-    
-    // Personalizar despedidas
     if (esDespedida(input)) {
       const despedidas = [
         "¡Con gusto! Estoy aquí para ayudarte siempre que lo necesites. ¡Que tengas un excelente día! 😊",
         "¡De nada! Me alegra haber podido ayudarte. No dudes en consultarme cuando necesites información sobre el transporte público. ¡Hasta pronto! 🚌",
-        "¡Perfecto! Siempre estaré disponible para resolver tus dudas sobre ADMU. ¡Que tengas un buen viaje! 🌟"
+        "¡Perfecto! Siempre estaré disponible para resolver tus dudas sobre ADMU. ¡Buen viaje! 🌟"
       ];
       return despedidas[Math.floor(Math.random() * despedidas.length)];
     }
-    
-    // Para otras consultas, usar la respuesta de Mistral pero asegurar que sea informativa
     return mistralResponse;
   };
 
-  // Consulta a Mistral con contexto real
   const askMistral = async (question) => {
     const rutasContext = rutas.map(r => `- ${r.nombre}: de ${r.origen} a ${r.destino}, duración: ${r.duracion}, estado: ${r.estado}`).join("\n");
     const paraderosContext = paraderos.map(p => `- ${p.nombre}: ${p.descripcion}`).join("\n");
+    const tarifasContext = tarifas.map(t => `- Ruta: ${t.ruta}, tarifa: $${t.tarifa}, tipo: ${t.tipo}, empresa: ${t.compania}`).join("\n");
 
     try {
       const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer SFT2EW3Q4IZ4uHqSi9j9Fapf6bZAmv1L`
+          Authorization: "Bearer SFT2EW3Q4IZ4uHqSi9j9Fapf6bZAmv1L"
         },
         body: JSON.stringify({
           model: "mistral-small",
           messages: [
             {
               role: "system",
-              content: `Eres un asistente especializado en el sistema de transporte público ADMU de Armenia, Colombia. Tu función es proporcionar información precisa y útil sobre rutas, horarios, tarifas y paraderos.
-
-INFORMACIÓN DISPONIBLE:
-Rutas del sistema:
+              content: `Eres un asistente especializado en el transporte público ADMU de Armenia, Colombia.
+Rutas:
 ${rutasContext}
 
-Paraderos principales:
+Paraderos:
 ${paraderosContext}
 
-INSTRUCCIONES:
-- Responde de forma clara, precisa y amigable
-- Proporciona solo información relacionada con el transporte público ADMU
-- Si no tienes información específica, sugiere alternativas o recomienda contactar al sistema
-- Mantén las respuestas concisas pero informativas
-- No inventes información que no esté en el contexto proporcionado`
+Tarifas:
+${tarifasContext}
+
+Responde de forma clara y precisa solo con la información que tienes.`
             },
             {
               role: "user",
@@ -859,111 +858,69 @@ INSTRUCCIONES:
       const data = await res.json();
       return data.choices[0].message.content;
     } catch (error) {
-      console.error("Error al preguntar a Mistral:", error);
-      return "Lo siento, hubo un problema para procesar tu pregunta. Por favor, intenta de nuevo en unos momentos.";
+      console.error("Error:", error);
+      return "Lo siento, hubo un problema para procesar tu pregunta.";
     }
   };
 
-  // Enviar mensaje
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (inputText.trim() === "") return;
 
-    const userMessage = {
-      id: messages.length + 1,
-      text: inputText,
-      sender: "user",
-      timestamp: new Date()
-    };
+    const userMessage = { id: messages.length + 1, text: inputText, sender: "user", timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
     const currentInput = inputText;
     setInputText("");
     setIsTyping(true);
 
     try {
-      // Obtener respuesta de Mistral
       const mistralResponse = await askMistral(currentInput);
-      
-      // Personalizar la respuesta
       const finalResponse = personalizarRespuesta(currentInput, mistralResponse);
-      
-      setMessages(prev => [
-        ...prev,
-        {
-          id: messages.length + 2,
-          text: finalResponse,
-          sender: "bot",
-          timestamp: new Date()
-        }
-      ]);
+      setMessages(prev => [...prev, { id: messages.length + 2, text: finalResponse, sender: "bot", timestamp: new Date() }]);
     } catch (error) {
       console.error("Error al generar respuesta:", error);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: messages.length + 2,
-          text: "Lo siento, ha ocurrido un error al procesar tu solicitud. Por favor, intenta de nuevo.",
-          sender: "bot",
-          timestamp: new Date()
-        }
-      ]);
+      setMessages(prev => [...prev, { id: messages.length + 2, text: "Lo siento, hubo un error al procesar tu solicitud.", sender: "bot", timestamp: new Date() }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-[1050] bg-blue-600 text-white p-3 rounded-full shadow-lg"
-        aria-label={isOpen ? "Cerrar chat" : "Abrir chat"}
-      >
+      <button onClick={() => setIsOpen(!isOpen)} className="fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg z-[1050]">
         {isOpen ? <X size={20} /> : <MessageSquare size={20} />}
       </button>
 
-      <div
-        className={`fixed bottom-20 right-6 z-[1050] bg-white rounded-lg shadow-xl flex flex-col w-80 md:w-96 max-h-[500px] ${isOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}
-      >
+      <div className={`fixed bottom-20 right-6 bg-white rounded-lg shadow-xl w-80 md:w-96 max-h-[500px] flex flex-col ${isOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"} z-[1050]`}>
         <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
           <div className="flex items-center">
             <MessageSquare size={16} className="mr-1.5" />
             <h3 className="text-sm font-semibold">Asistente Virtual ADMU</h3>
           </div>
-          <button onClick={() => setIsOpen(false)} className="text-white">
-            <ChevronDown size={16} />
-          </button>
+          <button onClick={() => setIsOpen(false)}><ChevronDown size={16} /></button>
         </div>
 
         <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 text-xs">
-              ¡Hola! Soy tu asistente virtual de ADMU. Escribe &quot;hola&quot; para comenzar...
-            </div>
+            <div className="text-center text-gray-400 text-xs">¡Hola! Soy tu asistente virtual de ADMU. Escribe &quot;hola&quot; para comenzar...</div>
           ) : (
             <div className="space-y-3">
-              {messages.map(message => (
-                <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] rounded-lg p-2.5 ${message.sender === "user" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-800"}`}>
-                    <div className="whitespace-pre-line text-xs">{message.text}</div>
-                    <div className={`text-[10px] mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
-                      {formatTime(message.timestamp)}
-                    </div>
+              {messages.map(msg => (
+                <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] rounded-lg p-2.5 ${msg.sender === "user" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-800"}`}>
+                    <div className="whitespace-pre-line text-xs">{msg.text}</div>
+                    <div className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>{formatTime(msg.timestamp)}</div>
                   </div>
                 </div>
               ))}
               {isTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-lg p-2.5 max-w-[80%]">
-                    <div className="flex space-x-1">
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-400"></div>
-                    </div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-2.5 max-w-[80%] flex space-x-1">
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-400"></div>
                   </div>
                 </div>
               )}
@@ -974,27 +931,8 @@ INSTRUCCIONES:
 
         <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 bg-white rounded-b-lg">
           <div className="flex items-center">
-            <input
-              type="text"
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              placeholder="Escribe tu mensaje..."
-              className="flex-1 border border-gray-300 rounded-l-lg py-1.5 px-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoComplete="off"
-              spellCheck={true}
-            />
-            <button type="submit" className="bg-blue-600 text-white rounded-r-lg p-1.5" disabled={inputText.trim() === ""}>
-              <Send size={16} />
-            </button>
-          </div>
-          <div className="mt-1.5 text-xs text-gray-500 flex items-center justify-center">
-            <button 
-              type="button" 
-              onClick={() => setInputText("Hola")}
-              className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
-            >
-              <MessageSquare size={10} className="mr-1" /> Saludar
-            </button>
+            <input type="text" value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Escribe tu mensaje..." className="flex-1 border border-gray-300 rounded-l-lg py-1.5 px-2.5 text-sm focus:outline-none text-gray-800" />
+            <button type="submit" className="bg-blue-600 text-white rounded-r-lg p-1.5" disabled={inputText.trim() === ""}><Send size={16} /></button>
           </div>
         </form>
       </div>
@@ -1003,4 +941,3 @@ INSTRUCCIONES:
 };
 
 export default ChatBot;
-

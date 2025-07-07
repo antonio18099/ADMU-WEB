@@ -717,8 +717,7 @@
 
 
 
-                                                // ChatBot.js con mistral
-// ChatBot.js con Mistral + Tarifas en código
+ // ChatBot.js con Mistral + Respuesta Automática de Tarifas
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, X, ChevronDown } from "lucide-react";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -733,7 +732,7 @@ const ChatBot = () => {
   const [paraderos, setParaderos] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // TARIFAS FIJAS EN CÓDIGO
+  // TARIFAS FIJAS
   const tarifas = [
     { compania: "Buses Armenia SAS", ruta: "Ruta 33", tarifa: 2900, tipo: "General" },
     { compania: "Cootracir", ruta: "Salento", tarifa: 4000, tipo: "General" },
@@ -746,38 +745,32 @@ const ChatBot = () => {
     { compania: "Buses Armenia SAS", ruta: "Ruta 31", tarifa: 2900, tipo: "General" },
   ];
 
-  // Cargar rutas de Firestore
+  // Escuchar rutas en Firestore
   useEffect(() => {
-    const rutasRef = collection(db, "rutas");
-    const unsubscribe = onSnapshot(rutasRef, snapshot => {
-      const data = snapshot.docs.map(doc => ({
+    const unsubscribe = onSnapshot(collection(db, "rutas"), snapshot => {
+      setRutas(snapshot.docs.map(doc => ({
         id: doc.id,
-        nombre: doc.data().nombre,
-        origen: doc.data().origen,
-        destino: doc.data().destino,
+        ...doc.data(),
         duracion: doc.data().duracionEstimada || "No especificada",
         estado: doc.data().estado || "Desconocido"
-      }));
-      setRutas(data);
+      })));
     });
     return () => unsubscribe();
   }, []);
 
-  // Cargar paraderos de Firestore
+  // Escuchar paraderos en Firestore
   useEffect(() => {
-    const paraderosRef = collection(db, "paraderos");
-    const unsubscribe = onSnapshot(paraderosRef, snapshot => {
-      const data = snapshot.docs.map(doc => ({
+    const unsubscribe = onSnapshot(collection(db, "paraderos"), snapshot => {
+      setParaderos(snapshot.docs.map(doc => ({
         id: doc.id,
-        nombre: doc.data().nombre,
+        ...doc.data(),
         descripcion: doc.data().descripcion || "Sin descripción"
-      }));
-      setParaderos(data);
+      })));
     });
     return () => unsubscribe();
   }, []);
 
-  // Scroll automático
+  // Auto-scroll
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -785,44 +778,53 @@ const ChatBot = () => {
   }, [messages]);
 
   const esSaludo = (texto) => {
-    const saludos = ["hola", "buenos días", "buenas tardes", "buenas noches", "saludos", "hey", "ey", "buen día", "que tal", "qué tal", "como estas", "cómo estás", "hi", "hello"];
-    return saludos.some(saludo => texto.toLowerCase().includes(saludo));
+    const saludos = ["hola", "buenos días", "buenas tardes", "buenas noches", "saludos", "hey", "ey", "buen día", "qué tal", "como estas", "cómo estás", "hi", "hello"];
+    return saludos.some(s => texto.toLowerCase().includes(s));
   };
 
   const esDespedida = (texto) => {
-    const despedidas = ["gracias", "muchas gracias", "thank you", "thanks", "te agradezco", "perfecto", "excelente", "muy bien", "ok gracias", "está bien", "listo", "chao", "adiós", "hasta luego", "nos vemos"];
-    return despedidas.some(despedida => texto.toLowerCase().includes(despedida));
+    const despedidas = ["gracias", "thank you", "thanks", "te agradezco", "perfecto", "excelente", "muy bien", "ok gracias", "está bien", "listo", "chao", "adiós", "hasta luego"];
+    return despedidas.some(d => texto.toLowerCase().includes(d));
+  };
+
+  const mencionaTarifas = (texto) => {
+    const claves = ["tarifa", "tarifas", "precio", "precios", "vale", "cuánto cuesta", "cuánto vale"];
+    return claves.some(p => texto.toLowerCase().includes(p));
+  };
+
+  const listaTarifasTexto = () => {
+    return tarifas.map(t => `- ${t.compania}, ${t.ruta}: $${t.tarifa} (${t.tipo})`).join("\n");
   };
 
   const personalizarRespuesta = (userInput, mistralResponse) => {
     const input = userInput.toLowerCase();
+
     if (esSaludo(input)) {
-      const horaActual = new Date().getHours();
-      let saludo = "¡Hola!";
-      if (horaActual >= 5 && horaActual < 12) {
-        saludo = "¡Buenos días!";
-      } else if (horaActual >= 12 && horaActual < 18) {
-        saludo = "¡Buenas tardes!";
-      } else {
-        saludo = "¡Buenas noches!";
-      }
+      const hora = new Date().getHours();
+      const saludo = hora < 12 ? "¡Buenos días!" : hora < 18 ? "¡Buenas tardes!" : "¡Buenas noches!";
       return `${saludo} 👋 Soy el asistente virtual de ADMU. ¿En qué te puedo ayudar hoy?`;
     }
+
     if (esDespedida(input)) {
       const despedidas = [
-        "¡Con gusto! Estoy aquí para ayudarte siempre que lo necesites. ¡Que tengas un excelente día! 😊",
-        "¡De nada! Me alegra haber podido ayudarte. No dudes en consultarme cuando necesites información sobre el transporte público. ¡Hasta pronto! 🚌",
-        "¡Perfecto! Siempre estaré disponible para resolver tus dudas sobre ADMU. ¡Buen viaje! 🌟"
+        "¡Con gusto! Aquí estaré cuando me necesites. 😊",
+        "¡De nada! Vuelve cuando quieras saber más sobre transporte público. 🚌",
+        "¡Perfecto! ¡Buen viaje! 🌟"
       ];
       return despedidas[Math.floor(Math.random() * despedidas.length)];
     }
+
+    if (mencionaTarifas(input)) {
+      return `Estas son las tarifas actuales:\n${listaTarifasTexto()}`;
+    }
+
     return mistralResponse;
   };
 
   const askMistral = async (question) => {
     const rutasContext = rutas.map(r => `- ${r.nombre}: de ${r.origen} a ${r.destino}, duración: ${r.duracion}, estado: ${r.estado}`).join("\n");
     const paraderosContext = paraderos.map(p => `- ${p.nombre}: ${p.descripcion}`).join("\n");
-    const tarifasContext = tarifas.map(t => `- Ruta: ${t.ruta}, tarifa: $${t.tarifa}, tipo: ${t.tipo}, empresa: ${t.compania}`).join("\n");
+    const tarifasContext = listaTarifasTexto();
 
     try {
       const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -836,7 +838,8 @@ const ChatBot = () => {
           messages: [
             {
               role: "system",
-              content: `Eres un asistente especializado en el transporte público ADMU de Armenia, Colombia.
+              content: `Eres un asistente de transporte público ADMU Armenia.
+
 Rutas:
 ${rutasContext}
 
@@ -846,20 +849,17 @@ ${paraderosContext}
 Tarifas:
 ${tarifasContext}
 
-Responde de forma clara y precisa solo con la información que tienes.`
+Responde solo con la información proporcionada.`
             },
-            {
-              role: "user",
-              content: question
-            }
+            { role: "user", content: question }
           ]
         })
       });
       const data = await res.json();
       return data.choices[0].message.content;
-    } catch (error) {
-      console.error("Error:", error);
-      return "Lo siento, hubo un problema para procesar tu pregunta.";
+    } catch (err) {
+      console.error(err);
+      return "Lo siento, hubo un problema procesando tu solicitud.";
     }
   };
 
@@ -869,17 +869,21 @@ Responde de forma clara y precisa solo con la información que tienes.`
 
     const userMessage = { id: messages.length + 1, text: inputText, sender: "user", timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
+
     const currentInput = inputText;
     setInputText("");
     setIsTyping(true);
 
     try {
-      const mistralResponse = await askMistral(currentInput);
+      let mistralResponse = "";
+      if (!mencionaTarifas(currentInput)) {
+        mistralResponse = await askMistral(currentInput);
+      }
       const finalResponse = personalizarRespuesta(currentInput, mistralResponse);
       setMessages(prev => [...prev, { id: messages.length + 2, text: finalResponse, sender: "bot", timestamp: new Date() }]);
-    } catch (error) {
-      console.error("Error al generar respuesta:", error);
-      setMessages(prev => [...prev, { id: messages.length + 2, text: "Lo siento, hubo un error al procesar tu solicitud.", sender: "bot", timestamp: new Date() }]);
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { id: messages.length + 2, text: "Lo siento, algo salió mal.", sender: "bot", timestamp: new Date() }]);
     } finally {
       setIsTyping(false);
     }
@@ -904,14 +908,18 @@ Responde de forma clara y precisa solo con la información que tienes.`
 
         <div className="flex-1 p-3 overflow-y-auto bg-gray-50">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 text-xs">¡Hola! Soy tu asistente virtual de ADMU. Escribe &quot;hola&quot; para comenzar...</div>
+            <div className="text-center text-gray-400 text-xs">
+              ¡Hola! Soy tu asistente virtual de ADMU. Escribe &quot;hola&quot; para comenzar...
+            </div>
           ) : (
             <div className="space-y-3">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] rounded-lg p-2.5 ${msg.sender === "user" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-800"}`}>
                     <div className="whitespace-pre-line text-xs">{msg.text}</div>
-                    <div className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>{formatTime(msg.timestamp)}</div>
+                    <div className={`text-[10px] mt-1 ${msg.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                      {formatTime(msg.timestamp)}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -931,8 +939,16 @@ Responde de forma clara y precisa solo con la información que tienes.`
 
         <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 bg-white rounded-b-lg">
           <div className="flex items-center">
-            <input type="text" value={inputText} onChange={e => setInputText(e.target.value)} placeholder="Escribe tu mensaje..." className="flex-1 border border-gray-300 rounded-l-lg py-1.5 px-2.5 text-sm focus:outline-none text-gray-800" />
-            <button type="submit" className="bg-blue-600 text-white rounded-r-lg p-1.5" disabled={inputText.trim() === ""}><Send size={16} /></button>
+            <input
+              type="text"
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              placeholder="Escribe tu mensaje..."
+              className="flex-1 border border-gray-300 rounded-l-lg py-1.5 px-2.5 text-sm focus:outline-none text-gray-800"
+            />
+            <button type="submit" className="bg-blue-600 text-white rounded-r-lg p-1.5" disabled={inputText.trim() === ""}>
+              <Send size={16} />
+            </button>
           </div>
         </form>
       </div>

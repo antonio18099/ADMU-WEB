@@ -647,7 +647,6 @@ useEffect(() => {
       const data = snapshot.docs.map(doc => {
         const d = doc.data();
 
-        // ✅ Compatibilidad con 'ubicacion' o 'latitud'/'longitud' planos
         const lat = d.ubicacion?.latitude ?? d.latitud;
         const lng = d.ubicacion?.longitude ?? d.longitud;
 
@@ -661,9 +660,10 @@ useEffect(() => {
           position,
           descripcion: d.descripcion || "",
           rutas: [],
-          idRutas: []
+          idRutas: [],
+          imagen: d.imagen || "" // ✅ Añadido aquí
         };
-      }).filter(p => p.position !== null); // Solo incluir paraderos válidos
+      }).filter(p => p.position !== null);
 
       setParaderos(data);
       setLoading(false);
@@ -863,20 +863,30 @@ useEffect(() => {
           />
           <LocationMarker />
           {displayedParaderos.map(paradero => (
-            <Marker
-              key={paradero.id}
-              position={paradero.position}
-              icon={paradaIcon}
-            >
-              <Popup>
-                <strong>{paradero.nombre}</strong>
-                <br />
-                {paradero.descripcion}
-                <br />
-                Rutas: {paradero.rutas.join(", ")}
-              </Popup>
-            </Marker>
-          ))}
+  <Marker
+    key={paradero.id}
+    position={paradero.position}
+    icon={paradaIcon}
+  >
+    <Popup maxWidth={250} minWidth={200}>
+      <div className="text-sm">
+        <h3 className="font-bold">{paradero.nombre}</h3>
+        <p className="text-gray-600">{paradero.descripcion}</p>
+        <p><strong>Rutas:</strong> {paradero.rutas.join(", ")}</p>
+        
+        {/* Mostrar imagen si existe */}
+        {paradero.imagen && (
+          <img
+            src={paradero.imagen}
+            alt={`Imagen de ${paradero.nombre}`}
+            className="mt-2 rounded-md shadow-md"
+            style={{ width: "100%", maxHeight: "120px", objectFit: "cover" }}
+          />
+        )}
+      </div>
+    </Popup>
+  </Marker>
+))}
           {selectedRoute && selectedRoute.path.length === 2 && (
             <Polyline positions={selectedRoute.path} color="blue" />
           )}
